@@ -16,6 +16,7 @@ import org.springframework.web.multipart.MultipartHttpServletRequest;
 
 import java.awt.image.BufferedImage;
 import java.io.*;
+import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -39,39 +40,45 @@ public class TestController {
     String multipartUpload(MultipartHttpServletRequest request) throws Exception {
         List<MultipartFile> fileList = request.getFiles("file");
 
-        String path = "C:\\Workspace\\theShop\\webapp\\upload\\wsale\\bbs\\";
+        String path = "C:\\Workspace\\ocr\\";
         String saveFileName = "";
+        String originFileName = "";
+        String result;
+
         File fileDir = new File(path);
         if (!fileDir.exists()) {
             fileDir.mkdirs();
         }
+
         long time = System.currentTimeMillis();
         for (MultipartFile mf : fileList) {
-            String originFileName = mf.getOriginalFilename(); // 원본 파일 명
+            originFileName = mf.getOriginalFilename(); // 원본 파일 명
             saveFileName = String.format("%d_%s", time, originFileName);
             try {
                 // 파일생성
                 mf.transferTo(new File(path, saveFileName));
-
             } catch (Exception e) {
                 e.printStackTrace();
             }
         }
 
-        InputStream newImg =  new FileInputStream(new File(path+saveFileName));
+        int lastIndex = originFileName.lastIndexOf(".");
+        String fileName = originFileName.substring(0, lastIndex);
+        String fileType = originFileName.substring(lastIndex + 1);
 
-        String dd = ocrJpg(saveFileName);
-        //List<String> kk = conversionPdf2Img(newImg, saveFileName);
-       /*if("pdf".equals(fileType)){
-           //p
+        int pdfIndex = saveFileName.lastIndexOf(".");
+        String filePdfName = saveFileName.substring(0, pdfIndex);
 
-        }else{
+       if("pdf".equals(fileType)){
+           InputStream newImg =  new FileInputStream(new File(path+saveFileName));
+           List<String> convertImg = conversionPdf2Img(newImg, filePdfName);
+           result = ocrJpg(convertImg.get(0).toString());
 
-        }*/
+       }else{
+           result = ocrJpg(saveFileName);
+        }
 
-
-
-        return "SUCCESS";
+        return result;
     }
 
     public String ocrJpg(String saveFileName) throws Exception{
@@ -79,7 +86,7 @@ public class TestController {
         String result = "";
         Map<String, Object> modelMap = new HashMap<String, Object>();
 
-        String filePath = "C:\\Workspace\\theShop\\webapp\\upload\\wsale\\bbs\\"+ saveFileName;
+        String filePath = "C:\\Workspace\\ocr\\"+ saveFileName;
 
         List<AnnotateImageRequest> requestsList = new ArrayList<>();
 
@@ -132,12 +139,12 @@ public class TestController {
                         }
                     }
 
-                    System.out.println(annotation);
-                    /*System.out.println("사업자번호 : " + bussinessNum);
+                    /*System.out.println(annotation);*/
+                    System.out.println("사업자번호 : " + bussinessNum);
                     System.out.println("약국명 : " + pharmacyName);
                     System.out.println("이름 : " + userName);
                     break;
-*/
+
                 }
             }
             result = "SUCCESS";
@@ -156,12 +163,13 @@ public class TestController {
             PDDocument pdfDoc = PDDocument.load(is); //Document 생성
             PDFRenderer pdfRenderer = new PDFRenderer(pdfDoc);
 
-            String resultImgPath = "C:\\Workspace\\theShop\\webapp\\upload\\wsale\\bbs\\pdf\\"; //이미지가 저장될 경로
+            String resultImgPath = "C:\\Workspace\\ocr\\"; //이미지가 저장될 경로
             Files.createDirectories(Paths.get(resultImgPath)); //PDF 2 Img에서는 경로가 없는 경우 이미지 파일이 생성이 안되기 때문에 디렉토리를 만들어준다.
 
             //순회하며 이미지로 변환 처리
             for (int i=0; i<pdfDoc.getPages().getCount(); i++) {
-                String imgFileName = resultImgPath + "/" + i + ".png";
+                String imgFileName = resultImgPath + imgName + ".jpg";
+                String convertImgName = imgName + ".jpg";
 
                 //DPI 설정
                 BufferedImage bim = pdfRenderer.renderImageWithDPI(i, 300, ImageType.RGB);
@@ -169,9 +177,8 @@ public class TestController {
                 // 이미지로 만든다.
                 ImageIOUtil.writeImage(bim, imgFileName , 300);
 
-                System.out.println("!@#!@");
                 //저장 완료된 이미지를 list에 추가한다.
-                savedImgList.add(imgFileName);
+                savedImgList.add(convertImgName);
             }
             pdfDoc.close(); //모두 사용한 PDF 문서는 닫는다.
         }
